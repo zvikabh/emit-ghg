@@ -34,8 +34,8 @@ import ray
 import logging
 
 ppmscaling = 100000.0
-CH4_WL = [2137, 2493]
-CO2_WL = [1922, 2337]
+CH4_WL = [2137, 2493]  # in nanometers
+CO2_WL = [1922, 2337]  # in nanometers
 
 
 def main(input_args=None):
@@ -89,24 +89,28 @@ def main(input_args=None):
     wavelengths = np.array([float(x) for x in img.metadata['wavelength']])
     if 'ch4' in args.library:
         active = [np.argmin(np.abs(wavelengths - x)) for x in CH4_WL]
-        logging.debug(f'CH4 active chanels: {active}')
+        logging.debug(f'CH4 active chanels: {active}')  # [236, 284]
     elif 'co2' in args.library:
         active = [np.argmin(np.abs(wavelengths - x)) for x in CO2_WL]
-        logging.debug(f'CO2 active chanels: {active}')
+        logging.debug(f'CO2 active chanels: {active}')  # [207, 263]
     else:
         logging.error('could not set active range - neither co2 nor ch4 found in library name')
         sys.exit(0)
 
+    # (Z) shape=(nrows, active_bands, ncols)
+    # ncols is the crosstrack length (1242).
+    # nrows is the downtrack length (1280).
+    # active_bands includes only the rows needed for retrieval. For CH4, this is 235:284.  (SEEMS TO MISS THE ACTUAL ACTIVE[1]?)
     img_mm = img.open_memmap(interleave='source',writeable=False)[:,active[0]-1:active[1],:]
 
     # Generate good pixel mask by excluding: saturated pixels, clouds, surface water, and
     # unsaturated flares (pixels where channel 270, or 2389.486 nm, exceeds a threshold)
+    # (Z) seems to have different shape than img_mm?
     l1b_bandmask_loaded = envi.open(envi_header(args.l1b_bandmask_file))[:,:,:]
     l1b_bandmask_unpacked = np.unpackbits(l1b_bandmask_loaded, axis= -1)
-    l1b_bandmask_summed = np.sum(l1b_bandmask_unpacked, axis = -1)
-    saturation_mask = l1b_bandmask_summed - np.min(l1b_bandmask_summed, axis = 0)
+    l1b_bandmask_summed = np.sum(l1b_bandmask_unpacked, axis = -1)   # (Z) sum over bands?
+    saturation_mask = l1b_bandmask_summed - np.min(l1b_bandmask_summed, axis = 0)  # (Z) 0 when pixel is minimal across all crosstrack pixels in this row?
     # True for pixels that should be used, False for those that are to be excluded
-    #saturation_mask_dilated = scipy.ndimage.binary_dilation(saturation_mask != 0, iterations = 10) < 1
     good_pixel_mask = scipy.ndimage.binary_dilation(saturation_mask != 0, iterations = 10) < 1
 
     # Make flare mask
