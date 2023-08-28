@@ -34,8 +34,8 @@ import ray
 import logging
 
 ppmscaling = 100000.0
-CH4_WL = [2137, 2493]  # in nanometers
-CO2_WL = [1922, 2337]  # in nanometers
+CH4_WL = [2137, 2493]  # range of wavelength to use in matched filter, in nanometers
+CO2_WL = [1922, 2337]  # range of wavelength to use in matched filter, in nanometers
 
 
 def main(input_args=None):
@@ -100,7 +100,7 @@ def main(input_args=None):
     # (Z) shape=(nrows, active_bands, ncols)
     # ncols is the crosstrack length (1242).
     # nrows is the downtrack length (1280).
-    # active_bands includes only the rows needed for retrieval. For CH4, this is 235:284.  (SEEMS TO MISS THE ACTUAL ACTIVE[1]?)
+    # active_bands includes only the rows needed for retrieval. For CH4, this is 235:284.
     img_mm = img.open_memmap(interleave='source',writeable=False)[:,active[0]-1:active[1],:]
 
     # Generate good pixel mask by excluding: saturated pixels, clouds, surface water, and
